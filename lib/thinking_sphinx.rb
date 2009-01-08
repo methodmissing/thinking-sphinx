@@ -50,6 +50,26 @@ module ThinkingSphinx
     end
   end
   
+  def self.merb?
+    defined?(Merb)
+  end
+  
+  def self.rails?
+    defined?(Rails)
+  end
+
+  def self.environment
+    ( merb? ? Merb.environment : ENV['RAILS_ENV'] ) || "development"  
+  end  
+  
+  def self.logger
+    merb? ? Merb.logger : RAILS_DEFAULT_LOGGER
+  end
+  
+  def self.app_root
+    merb? ? Merb.root : RAILS_ROOT
+  end
+    
   # The collection of indexed models. Keep in mind that Rails lazily loads
   # its classes, so this may not actually be populated with _all_ the models
   # that have Sphinx indexes.
