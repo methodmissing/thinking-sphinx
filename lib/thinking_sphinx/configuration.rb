@@ -131,11 +131,18 @@ module ThinkingSphinx
       end
     end
     
+    # Delegate loading nested models to ActiveSupport::Dependencies instead
+    #
+    def load_models?
+      Rails.respond_to?(:configuration) ? !Rails.configuration.cache_classes : true
+    end
+    
     # Make sure all models are loaded - without reloading any that
     # ActiveRecord::Base is already aware of (otherwise we start to hit some
     # messy dependencies issues).
     # 
     def load_models
+      return unless load_models?
       self.model_directories.each do |base|
         Dir["#{base}**/*.rb"].each do |file|
           model_name = file.gsub(/^#{base}([\w_\/\\]+)\.rb/, '\1')
