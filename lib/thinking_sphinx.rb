@@ -25,7 +25,7 @@ ActiveRecord::Base.send(:include, ThinkingSphinx::ActiveRecord)
 
 Merb::Plugins.add_rakefiles(
   File.join(File.dirname(__FILE__), "..", "tasks", "thinking_sphinx_tasks")
-) if defined?(Merb)
+) if ThinkingSphinx.merb?
 
 module ThinkingSphinx
   module Version #:nodoc:

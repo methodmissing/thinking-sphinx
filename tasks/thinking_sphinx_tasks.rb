@@ -2,8 +2,8 @@ require 'fileutils'
 
 namespace :thinking_sphinx do
   task :app_env do
-    Rake::Task[:environment].invoke if defined?(RAILS_ROOT)
-    Rake::Task[:merb_env].invoke    if defined?(Merb)
+    Rake::Task[:environment].invoke if ThinkingSphinx.rails?
+    Rake::Task[:merb_env].invoke    if ThinkingSphinx.merb?
   end
   
   desc "Stop if running, then start a Sphinx searchd daemon using Thinking Sphinx's settings"

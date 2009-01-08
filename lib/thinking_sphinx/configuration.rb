@@ -69,8 +69,7 @@ module ThinkingSphinx
     end
     
     def reset
-      self.app_root          = RAILS_ROOT if defined?(RAILS_ROOT)
-      self.app_root          = Merb.root  if defined?(Merb)
+      self.app_root         = ThinkingSphinx.app_root
       self.app_root        ||= app_root
       
       @configuration = Riddle::Configuration.new
@@ -99,9 +98,7 @@ module ThinkingSphinx
     end
     
     def self.environment
-      @@environment ||= (
-        defined?(Merb) ? Merb.environment : ENV['RAILS_ENV']
-      ) || "development"
+      @@environment ||= ThinkingSphinx.environment
     end
     
     def environment
