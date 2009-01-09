@@ -131,7 +131,11 @@ module ThinkingSphinx
     # Delegate loading nested models to ActiveSupport::Dependencies instead
     #
     def load_models?
-      Rails.respond_to?(:configuration) ? !Rails.configuration.cache_classes : true
+      if ThinkingSphinx.rails?
+        Rails.respond_to?(:configuration) ? !Rails.configuration.cache_classes : true
+      else
+        #TODO: Merb support
+      end
     end
     
     # Make sure all models are loaded - without reloading any that

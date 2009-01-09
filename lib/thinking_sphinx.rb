@@ -23,10 +23,6 @@ require 'thinking_sphinx/adapters/postgresql_adapter'
 
 ActiveRecord::Base.send(:include, ThinkingSphinx::ActiveRecord)
 
-Merb::Plugins.add_rakefiles(
-  File.join(File.dirname(__FILE__), "..", "tasks", "thinking_sphinx_tasks")
-) if ThinkingSphinx.merb?
-
 module ThinkingSphinx
   module Version #:nodoc:
     Major = 1
@@ -159,3 +155,7 @@ module ThinkingSphinx
     `cat #{pid_file}`[/\d+/] if File.exists?(pid_file)
   end
 end
+
+Merb::Plugins.add_rakefiles(
+  File.join(File.dirname(__FILE__), "..", "tasks", "thinking_sphinx_tasks")
+) if ThinkingSphinx.merb?
