@@ -248,12 +248,19 @@ describe ThinkingSphinx::Attribute do
     end
   end
   
+  describe "translate_to_string method" do
+    attribute = ThinkingSphinx::Attribute.new(
+      [ ThinkingSphinx::Index::FauxColumn.new(:first_name) ],
+      :model => Person )
+    attribute.send(:translate_to_string, ThinkingSphinx::Index::FauxColumn.new(:first_name) ).should ==  "CRC32(`people`.`first_name`)"
+  end
+  
   describe "database_columns_references_string_column method" do
     it "should be able to determine which column definitions directly references string database columns" do
       attribute = ThinkingSphinx::Attribute.new(
         [ ThinkingSphinx::Index::FauxColumn.new(:first_name) ],
         :model => Person )
-      attribute.send(:database_columns_references_string_column).should == attribute.columns
+      attribute.send(:database_columns_references_string_column).should == []
     end
   end
   

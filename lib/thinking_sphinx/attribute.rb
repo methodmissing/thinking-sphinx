@@ -62,6 +62,7 @@ module ThinkingSphinx
       @alias        = options[:as]
       @type         = options[:type]
       @model        = options[:model]
+      database_columns_references_string_column!
     end
     
     # Get the part of the SELECT clause related to this attribute. Don't forget
@@ -261,8 +262,17 @@ module ThinkingSphinx
       database_column_references.select { |col| database_column_references_string_column?( col.__name ) }
     end
     
-    def database_columns_references_string_column?
-      #puts database_columns_references_string_column.inspect
+    def translate_to_string( column )
+      "CRC32(#{@model.quoted_table_name}.#{quote_column(column.__name)})"
+    end
+    
+    def database_columns_references_string_column!
+      database_columns_references_string_column.each do |column|
+        index = @columns.index(column)
+        column.name = translate_to_string( column )
+        @type = :integer
+        @columns[index] = column
+      end
     end
     
     def database_column_references_string_column?( name )
