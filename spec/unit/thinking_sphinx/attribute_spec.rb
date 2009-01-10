@@ -13,12 +13,16 @@ describe ThinkingSphinx::Attribute do
         ThinkingSphinx::Attribute.new([1234])
       }.should raise_error(RuntimeError)
     end
+    
+    it "assigns it's model if :model defined as an option" do
+      ThinkingSphinx::Attribute.new(ThinkingSphinx::Index::FauxColumn.coerce("string"), :model => Person).model.should == Person
+    end
   end
   
   describe "unique_name method" do
     before :each do
       @attribute = ThinkingSphinx::Attribute.new [
-        Object.stub_instance(:__stack => [], :__name => "col_name")
+        Object.stub_instance(:__stack => [], :__name => "col_name", :is_string? => false)
       ]
     end
     
@@ -209,4 +213,48 @@ describe ThinkingSphinx::Attribute do
       attribute.send(:all_ints?).should be_false
     end
   end
+  
+  describe "database_columns_is_string method" do
+    it "should return an empty array if model is not defined" do
+      attribute = ThinkingSphinx::Attribute.new(
+        [ ThinkingSphinx::Index::FauxColumn.new(:id) ]
+      )
+      attribute.send(:database_columns_is_string).should == []
+    end
+    
+    it "should return all string database columns if model is defined" do
+      attribute = ThinkingSphinx::Attribute.new(
+        [ ThinkingSphinx::Index::FauxColumn.new(:id) ], 
+        :model => Person )
+      attribute.send(:database_columns_is_string).size.should == 12
+    end    
+    
+  end
+  
+  describe "database_column_references_string_column? method" do
+    it "should be able to determine if a given column references a database string column" do
+      attribute = ThinkingSphinx::Attribute.new(
+        [ ThinkingSphinx::Index::FauxColumn.new(:first_name) ], 
+        :model => Person )
+      attribute.send(:database_column_references_string_column?, :first_name).should == true  
+    end
+  end
+  
+  describe "database_column_references method" do
+    it "should be able to determine which column definitions directly references database columns" do
+      attribute = ThinkingSphinx::Attribute.new(
+        [ ThinkingSphinx::Index::FauxColumn.new(:first_name) ] )
+      attribute.send(:database_column_references).should == attribute.columns
+    end
+  end
+  
+  describe "database_columns_references_string_column method" do
+    it "should be able to determine which column definitions directly references string database columns" do
+      attribute = ThinkingSphinx::Attribute.new(
+        [ ThinkingSphinx::Index::FauxColumn.new(:first_name) ],
+        :model => Person )
+      attribute.send(:database_columns_references_string_column).should == attribute.columns
+    end
+  end
+  
 end

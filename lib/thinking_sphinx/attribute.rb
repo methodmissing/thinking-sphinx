@@ -61,6 +61,7 @@ module ThinkingSphinx
       
       @alias        = options[:as]
       @type         = options[:type]
+      @model        = options[:model]
     end
     
     # Get the part of the SELECT clause related to this attribute. Don't forget
@@ -251,6 +252,30 @@ module ThinkingSphinx
     def is_string?
       columns.all? { |col| col.is_string? }
     end
+
+    def database_column_references
+      columns.select { |col| !col.is_string? }
+    end
+    
+    def database_columns_references_string_column
+      database_column_references.select { |col| database_column_references_string_column?( col.__name ) }
+    end
+    
+    def database_columns_references_string_column?
+      #puts database_columns_references_string_column.inspect
+    end
+    
+    def database_column_references_string_column?( name )
+      !database_columns_is_string.detect { |col| col.name == name.to_s }.nil?
+    end
+    
+    def database_columns_is_string
+      if @model
+        @model.columns.select { |col| col.text? }
+      else
+        []
+      end  
+    end    
     
     # Returns the type of the column. If that's not already set, it returns
     # :multi if there's the possibility of more than one value, :string if

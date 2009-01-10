@@ -268,7 +268,7 @@ GROUP BY #{ (
     # 
     def initialize_from_builder(&block)
       builder = Class.new(Builder)
-      builder.setup
+      builder.setup( @model )
       
       builder.instance_eval &block
       

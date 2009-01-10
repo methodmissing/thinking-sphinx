@@ -28,6 +28,10 @@ module ThinkingSphinx
         end
       end
       
+      def name=( name )
+        @name = name
+      end
+      
       # Can't use normal method name, as that could be an association or
       # column name.
       # 

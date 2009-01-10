@@ -25,12 +25,13 @@ module ThinkingSphinx
         }
         
         attr_accessor :fields, :attributes, :properties, :conditions,
-          :groupings
+          :groupings, :model
         
         # Set up all the collections. Consider this the equivalent of an
         # instance's initialize method.
         # 
-        def setup
+        def setup( model )
+          @model = model
           @fields     = []
           @attributes = []
           @properties = {}
@@ -141,6 +142,7 @@ module ThinkingSphinx
         # 
         def has(*args)
           options = args.extract_options!
+          options.merge!( :model => @model )
           args.each do |columns|
             attributes << Attribute.new(FauxColumn.coerce(columns), options)
           end
