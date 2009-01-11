@@ -271,7 +271,7 @@ module ThinkingSphinx
         index = @columns.index(column)
         column.name = translate_to_string( column )
         @type = :integer
-        @alias = column.name
+        @alias = column.__name
         @columns[index] = column
       end
     end
