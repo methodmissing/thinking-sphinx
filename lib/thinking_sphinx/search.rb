@@ -459,7 +459,7 @@ module ThinkingSphinx
         
         # exclusive attribute filter on primary key
         client.filters += Array(options[:without_ids]).collect { |id|
-          Riddle::Client::Filter.new 'sphinx_internal_id', filter_value(klass, '', id), true
+          Riddle::Client::Filter.new 'sphinx_internal_id', filter_value(klass, 'sphinx_internal_id', id), true
         } if options[:without_ids]
         
         client
@@ -482,7 +482,9 @@ module ThinkingSphinx
       end
       
       def filter_value( klass, attribute, value )
-        value = value.to_crc32 if translate_string?( klass, attribute )
+        if translate_string?( klass, attribute )
+          value = value.to_s.to_crc32
+        end
         case value
         when Range
           value.first.is_a?(Time) ? timestamp(value.first)..timestamp(value.last) : value
@@ -513,7 +515,7 @@ module ThinkingSphinx
         attributes = klass ? klass.sphinx_indexes.collect { |index|
           index.attributes.collect { |attrib| attrib.unique_name }
         }.flatten : []
-        
+
         search_string = []
         filters       = []
         
@@ -531,8 +533,8 @@ module ThinkingSphinx
       end
       
       def translate_string?( klass, attribute )
-        if klass.respond_to?( :column_for_attribute )
-          column = klass.column_for_attribute(attribute)
+        if klass.respond_to?( :columns_hash )
+          column = klass.columns_hash[attribute.to_s]
           column ? column.text?() : false
         else
           false

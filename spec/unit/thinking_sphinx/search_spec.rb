@@ -49,6 +49,16 @@ describe ThinkingSphinx::Search do
       end
 
     end
+    
+    describe "search conditions" do
+      
+      it "should be able to translate values for string database columns" do
+        ThinkingSphinx::Search.unstub_methods(:search_conditions)
+        ThinkingSphinx::Search.send( :search_conditions, Person, :last_name => 'Smith' ).last.last.values.should == [1071761647] 
+      end
+      
+    end
+    
   end
 end
 
