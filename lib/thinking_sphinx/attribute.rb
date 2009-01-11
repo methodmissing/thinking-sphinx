@@ -62,7 +62,7 @@ module ThinkingSphinx
       @alias        = options[:as]
       @type         = options[:type]
       @model        = options[:model]
-      #database_columns_references_string_column!
+      database_columns_references_string_column!
     end
     
     # Get the part of the SELECT clause related to this attribute. Don't forget

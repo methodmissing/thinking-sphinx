@@ -449,17 +449,17 @@ module ThinkingSphinx
         
         # normal attribute filters
         client.filters += options[:with].collect { |attr,val|
-          Riddle::Client::Filter.new attr.to_s, filter_value(val)
+          Riddle::Client::Filter.new attr.to_s, filter_value(klass, attr, val)
         } if options[:with]
         
         # exclusive attribute filters
         client.filters += options[:without].collect { |attr,val|
-          Riddle::Client::Filter.new attr.to_s, filter_value(val), true
+          Riddle::Client::Filter.new attr.to_s, filter_value(klass, attr, val), true
         } if options[:without]
         
         # exclusive attribute filter on primary key
         client.filters += Array(options[:without_ids]).collect { |id|
-          Riddle::Client::Filter.new 'sphinx_internal_id', filter_value(id), true
+          Riddle::Client::Filter.new 'sphinx_internal_id', filter_value(klass, '', id), true
         } if options[:without_ids]
         
         client
@@ -481,7 +481,8 @@ module ThinkingSphinx
         end
       end
       
-      def filter_value(value)
+      def filter_value( klass, attribute, value )
+        value = value.to_crc32 if translate_string?( klass, attribute )
         case value
         when Range
           value.first.is_a?(Time) ? timestamp(value.first)..timestamp(value.last) : value
@@ -519,7 +520,7 @@ module ThinkingSphinx
         conditions.each do |key,val|
           if attributes.include?(key.to_sym)
             filters << Riddle::Client::Filter.new(
-              key.to_s, filter_value(val)
+              key.to_s, filter_value(klass, key, val)
             )
           else
             search_string << "@#{key} #{val}"
@@ -527,6 +528,11 @@ module ThinkingSphinx
         end
         
         return search_string.join(' '), filters
+      end
+      
+      def translate_string?( klass, attribute )
+        column = klass.column_for_attribute(attribute)
+        column ? column.text?() : false
       end
       
       # Return the appropriate latitude and longitude values, depending on
