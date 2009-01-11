@@ -269,9 +269,9 @@ module ThinkingSphinx
     def database_columns_references_string_column!
       database_columns_references_string_column.each do |column|
         index = @columns.index(column)
-        column.name = translate_to_string( column )
         @type = :integer
-        @alias = column.__name
+        @alias = column.__name        
+        column.name = translate_to_string( column )
         @columns[index] = column
       end
     end
