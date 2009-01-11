@@ -531,8 +531,12 @@ module ThinkingSphinx
       end
       
       def translate_string?( klass, attribute )
-        column = klass.column_for_attribute(attribute)
-        column ? column.text?() : false
+        if klass.respond_to?( :column_for_attribute )
+          column = klass.column_for_attribute(attribute)
+          column ? column.text?() : false
+        else
+          false
+        end  
       end
       
       # Return the appropriate latitude and longitude values, depending on
