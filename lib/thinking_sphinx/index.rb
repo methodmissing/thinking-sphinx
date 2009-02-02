@@ -159,7 +159,7 @@ GROUP BY #{ (
 ).join(", ") }
       SQL
       
-      if @model.connection.class.name == "ActiveRecord::ConnectionAdapters::MysqlAdapter"
+      if @model.connection.class.name == "ActiveRecord::ConnectionAdapters::MysqlAdapter" || @model.connection.class.name == "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
         sql += " ORDER BY NULL"
       end
       
@@ -205,7 +205,7 @@ GROUP BY #{ (
     
     def adapter
       @adapter ||= case @model.connection.class.name
-      when "ActiveRecord::ConnectionAdapters::MysqlAdapter"
+      when "ActiveRecord::ConnectionAdapters::MysqlAdapter", "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
         :mysql
       when "ActiveRecord::ConnectionAdapters::PostgreSQLAdapter"
         :postgres

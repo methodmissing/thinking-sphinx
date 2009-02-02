@@ -114,7 +114,7 @@ module ThinkingSphinx
     
     def concatenate(clause)
       case @model.connection.class.name
-      when "ActiveRecord::ConnectionAdapters::MysqlAdapter"
+      when "ActiveRecord::ConnectionAdapters::MysqlAdapter", "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
         "CONCAT_WS(' ', #{clause})"
       when "ActiveRecord::ConnectionAdapters::PostgreSQLAdapter"
         clause.split(', ').collect { |field|
@@ -127,7 +127,7 @@ module ThinkingSphinx
     
     def group_concatenate(clause)
       case @model.connection.class.name
-      when "ActiveRecord::ConnectionAdapters::MysqlAdapter"
+      when "ActiveRecord::ConnectionAdapters::MysqlAdapter", "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
         "GROUP_CONCAT(#{clause} SEPARATOR ' ')"
       when "ActiveRecord::ConnectionAdapters::PostgreSQLAdapter"
         "array_to_string(array_accum(#{clause}), ' ')"
@@ -138,7 +138,7 @@ module ThinkingSphinx
     
     def cast_to_string(clause)
       case @model.connection.class.name
-      when "ActiveRecord::ConnectionAdapters::MysqlAdapter"
+      when "ActiveRecord::ConnectionAdapters::MysqlAdapter", "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
         "CAST(#{clause} AS CHAR)"
       when "ActiveRecord::ConnectionAdapters::PostgreSQLAdapter"
         clause

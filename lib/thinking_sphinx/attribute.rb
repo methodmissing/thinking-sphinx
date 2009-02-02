@@ -139,7 +139,7 @@ module ThinkingSphinx
     
     def concatenate(clause, separator = ' ')
       case @model.connection.class.name
-      when "ActiveRecord::ConnectionAdapters::MysqlAdapter"
+      when "ActiveRecord::ConnectionAdapters::MysqlAdapter", "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
         "CONCAT_WS('#{separator}', #{clause})"
       when "ActiveRecord::ConnectionAdapters::PostgreSQLAdapter"
         clause.split(', ').collect { |attribute|
@@ -152,7 +152,7 @@ module ThinkingSphinx
     
     def group_concatenate(clause, separator = ' ')
       case @model.connection.class.name
-      when "ActiveRecord::ConnectionAdapters::MysqlAdapter"
+      when "ActiveRecord::ConnectionAdapters::MysqlAdapter", "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
         "GROUP_CONCAT(#{clause} SEPARATOR '#{separator}')"
       when "ActiveRecord::ConnectionAdapters::PostgreSQLAdapter"
         "array_to_string(array_accum(#{clause}), '#{separator}')"
@@ -163,7 +163,7 @@ module ThinkingSphinx
     
     def cast_to_string(clause)
       case @model.connection.class.name
-      when "ActiveRecord::ConnectionAdapters::MysqlAdapter"
+      when "ActiveRecord::ConnectionAdapters::MysqlAdapter", "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
         "CAST(#{clause} AS CHAR)"
       when "ActiveRecord::ConnectionAdapters::PostgreSQLAdapter"
         clause
@@ -174,7 +174,7 @@ module ThinkingSphinx
     
     def cast_to_datetime(clause)
       case @model.connection.class.name
-      when "ActiveRecord::ConnectionAdapters::MysqlAdapter"
+      when "ActiveRecord::ConnectionAdapters::MysqlAdapter", "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
         "UNIX_TIMESTAMP(#{clause})"
       when "ActiveRecord::ConnectionAdapters::PostgreSQLAdapter"
         "cast(extract(epoch from #{clause}) as int)"
@@ -185,7 +185,7 @@ module ThinkingSphinx
     
     def convert_nulls(clause)
       case @model.connection.class.name
-      when "ActiveRecord::ConnectionAdapters::MysqlAdapter"
+      when "ActiveRecord::ConnectionAdapters::MysqlAdapter", "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
         "IFNULL(#{clause}, '')"
       when "ActiveRecord::ConnectionAdapters::PostgreSQLAdapter"
         "COALESCE(#{clause}, '')"
