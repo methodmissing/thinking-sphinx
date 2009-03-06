@@ -46,18 +46,13 @@ module ThinkingSphinx
     def self.name(model)
       model.name.underscore.tr(':/\\', '_')
     end
-        
-    def to_riddle(model, index, offset)
-      add_internal_attributes
-      link!
-    end
     
     def to_riddle_for_core(offset, index)
       add_internal_attributes
       link!
       
       source = Riddle::Configuration::SQLSource.new(
-        "#{name}_core_#{index}", riddle_adapter
+        "#{name}_core_#{index}", adapter.sphinx_identifier
       )
       
       set_source_database_settings  source
@@ -73,7 +68,7 @@ module ThinkingSphinx
       link!
       
       source = Riddle::Configuration::SQLSource.new(
-        "#{name}_delta_#{index}", riddle_adapter
+        "#{name}_delta_#{index}", adapter.sphinx_identifier
       )
       source.parent = "#{name}_core_#{index}"
       
@@ -111,92 +106,6 @@ module ThinkingSphinx
       }
     end
     
-    # Generates the big SQL statement to get the data back for all the fields
-    # and attributes, using all the relevant association joins. If you want
-    # the version filtered for delta values, send through :delta => true in the
-    # options. Won't do much though if the index isn't set up to support a
-    # delta sibling.
-    # 
-    # Examples:
-    # 
-    #   index.to_sql
-    #   index.to_sql(:delta => true)
-    #
-    def to_sql(options={})
-      assocs = all_associations
-      
-      where_clause = ""
-      if self.delta? && !@delta_object.clause(@model, options[:delta]).blank?
-        where_clause << " AND #{@delta_object.clause(@model, options[:delta])}"
-      end
-      unless @conditions.empty?
-        where_clause << " AND " << @conditions.join(" AND ")
-      end
-      
-      internal_groupings = []
-      if @model.column_names.include?(@model.inheritance_column)
-         internal_groupings << "#{@model.quoted_table_name}.#{quote_column(@model.inheritance_column)}"
-      end
-      
-      unique_id_expr = "* #{ThinkingSphinx.indexed_models.size} + #{options[:offset] || 0}"
-      
-      sql = <<-SQL
-SELECT #{ (
-  ["#{@model.quoted_table_name}.#{quote_column(@model.primary_key)} #{unique_id_expr} AS #{quote_column(@model.primary_key)} "] + 
-  @fields.collect { |field| field.to_select_sql } +
-  @attributes.collect { |attribute| attribute.to_select_sql }
-).join(", ") }
-FROM #{ @model.table_name }
-  #{ assocs.collect { |assoc| assoc.to_sql }.join(' ') }
-WHERE #{@model.quoted_table_name}.#{quote_column(@model.primary_key)} >= $start
-  AND #{@model.quoted_table_name}.#{quote_column(@model.primary_key)} <= $end
-  #{ where_clause }
-GROUP BY #{ (
-  ["#{@model.quoted_table_name}.#{quote_column(@model.primary_key)}"] + 
-  @fields.collect { |field| field.to_group_sql }.compact +
-  @attributes.collect { |attribute| attribute.to_group_sql }.compact +
-  @groupings + internal_groupings
-).join(", ") }
-      SQL
-      
-      if @model.connection.class.name == "ActiveRecord::ConnectionAdapters::MysqlAdapter" || @model.connection.class.name == "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
-        sql += " ORDER BY NULL"
-      end
-      
-      sql
-    end
-    
-    # Simple helper method for the query info SQL - which is a statement that
-    # returns the single row for a corresponding id.
-    # 
-    def to_sql_query_info(offset)
-      "SELECT * FROM #{@model.quoted_table_name} WHERE " +
-      " #{quote_column(@model.primary_key)} = (($id - #{offset}) / #{ThinkingSphinx.indexed_models.size})"
-    end
-    
-    # Simple helper method for the query range SQL - which is a statement that
-    # returns minimum and maximum id values. These can be filtered by delta -
-    # so pass in :delta => true to get the delta version of the SQL.
-    # 
-    def to_sql_query_range(options={})
-      min_statement = "MIN(#{quote_column(@model.primary_key)})"
-      max_statement = "MAX(#{quote_column(@model.primary_key)})"
-      
-      # Fix to handle Sphinx PostgreSQL bug (it doesn't like NULLs or 0's)
-      if adapter == :postgres
-        min_statement = "COALESCE(#{min_statement}, 1)"
-        max_statement = "COALESCE(#{max_statement}, 1)"
-      end
-      
-      sql = "SELECT #{min_statement}, #{max_statement} " +
-            "FROM #{@model.quoted_table_name} "
-      if self.delta? && !@delta_object.clause(@model, options[:delta]).blank?
-        sql << "WHERE #{@delta_object.clause(@model, options[:delta])}"
-      end
-      
-      sql
-    end
-    
     # Flag to indicate whether this index has a corresponding delta index.
     #
     def delta?
@@ -204,14 +113,7 @@ GROUP BY #{ (
     end
     
     def adapter
-      @adapter ||= case @model.connection.class.name
-      when "ActiveRecord::ConnectionAdapters::MysqlAdapter", "ActiveRecord::ConnectionAdapters::MysqlplusAdapter"
-        :mysql
-      when "ActiveRecord::ConnectionAdapters::PostgreSQLAdapter"
-        :postgres
-      else
-        raise "Invalid Database Adapter: Sphinx only supports MySQL and PostgreSQL"
-      end
+      @adapter ||= @model.sphinx_database_adapter
     end
         
     def prefix_fields
@@ -229,28 +131,9 @@ GROUP BY #{ (
       }.each { |key| all_index_options[key.to_sym] = @options[key] }
       all_index_options
     end
-    
-    def source_options
-      all_source_options = ThinkingSphinx::Configuration.instance.source_options.clone
-      @options.keys.select { |key|
-        ThinkingSphinx::Configuration::SourceOptions.include?(key.to_s)
-      }.each { |key| all_source_options[key.to_sym] = @options[key] }
-      all_source_options
-    end
-    
+        
     def quote_column(column)
       @model.connection.quote_column_name(column)
-    end
-    
-    # Returns the proper boolean value string literal for the
-    # current database adapter.
-    #
-    def db_boolean(val)
-      if adapter == :postgres
-        val ? 'TRUE' : 'FALSE'
-      else
-        val ? '1' : '0'
-      end
     end
     
     private
@@ -276,13 +159,22 @@ GROUP BY #{ (
         stored_class = @model.store_full_sti_class ? @model.name : @model.name.demodulize
         builder.where("#{@model.quoted_table_name}.#{quote_column(@model.inheritance_column)} = '#{stored_class}'")
       end
-
-      @fields       = builder.fields
-      @attributes   = builder.attributes
+      
+      set_model = Proc.new { |item| item.model = @model }
+      
+      @fields       = builder.fields &set_model
+      @attributes   = builder.attributes.each &set_model
       @conditions   = builder.conditions
       @groupings    = builder.groupings
       @delta_object = ThinkingSphinx::Deltas.parse self, builder.properties
       @options      = builder.properties
+      
+      is_faceted = Proc.new { |item| item.faceted }
+      add_facet  = Proc.new { |item| @model.sphinx_facets << item.to_facet }
+      
+      @model.sphinx_facets ||= []
+      @fields.select(    &is_faceted).each &add_facet
+      @attributes.select(&is_faceted).each &add_facet
       
       # We want to make sure that if the database doesn't exist, then Thinking
       # Sphinx doesn't mind when running non-TS tasks (like db:create, db:drop
@@ -345,12 +237,10 @@ GROUP BY #{ (
 
     def crc_column
       if @model.column_names.include?(@model.inheritance_column)
-        case adapter
-        when :postgres
-          "COALESCE(crc32(#{@model.quoted_table_name}.#{quote_column(@model.inheritance_column)}), #{@model.to_crc32.to_s})"
-        when :mysql
-          "CAST(IFNULL(CRC32(#{@model.quoted_table_name}.#{quote_column(@model.inheritance_column)}), #{@model.to_crc32.to_s}) AS UNSIGNED)"
-        end
+        adapter.cast_to_unsigned(adapter.convert_nulls(
+          adapter.crc(adapter.quote_with_table(@model.inheritance_column)),
+          @model.to_crc32
+        ))
       else
         @model.to_crc32.to_s
       end
@@ -383,24 +273,13 @@ GROUP BY #{ (
         :as   => :sphinx_deleted
       ) unless @attributes.detect { |attr| attr.alias == :sphinx_deleted }
     end
-    
-    def riddle_adapter
-      case adapter
-      when :postgres
-        "pgsql"
-      when :mysql
-        "mysql"
-      else
-        raise "Unsupported Database Adapter: Sphinx only supports MySQL and PosgreSQL"
-      end
-    end
-    
+        
     def set_source_database_settings(source)
       config = @model.connection.instance_variable_get(:@config)
       
-      source.sql_host = config[:host]      || "localhost"
-      source.sql_user = config[:username]  || config[:user]
-      source.sql_pass = (config[:password] || "").gsub('#', '\#')
+      source.sql_host = config[:host]           || "localhost"
+      source.sql_user = config[:username]       || config[:user] || ""
+      source.sql_pass = (config[:password].to_s || "").gsub('#', '\#')
       source.sql_db   = config[:database]
       source.sql_port = config[:port]
       source.sql_sock = config[:socket]
@@ -423,9 +302,7 @@ GROUP BY #{ (
         source.sql_query_pre << "SET SESSION group_concat_max_len = #{@options[:group_concat_max_len]}"
       end
       
-      if utf8? && adapter == :mysql
-        source.sql_query_pre << "SET NAMES utf8"
-      end
+      source.sql_query_pre += [adapter.utf8_query_pre].compact if utf8?
     end
     
     def set_source_settings(source)
@@ -448,6 +325,90 @@ GROUP BY #{ (
     
     def sql_query_pre_for_delta
       [""]
+    end
+    
+    # Generates the big SQL statement to get the data back for all the fields
+    # and attributes, using all the relevant association joins. If you want
+    # the version filtered for delta values, send through :delta => true in the
+    # options. Won't do much though if the index isn't set up to support a
+    # delta sibling.
+    # 
+    # Examples:
+    # 
+    #   index.to_sql
+    #   index.to_sql(:delta => true)
+    #
+    def to_sql(options={})
+      assocs = all_associations
+      
+      where_clause = ""
+      if self.delta? && !@delta_object.clause(@model, options[:delta]).blank?
+        where_clause << " AND #{@delta_object.clause(@model, options[:delta])}"
+      end
+      unless @conditions.empty?
+        where_clause << " AND " << @conditions.join(" AND ")
+      end
+      
+      internal_groupings = []
+      if @model.column_names.include?(@model.inheritance_column)
+         internal_groupings << "#{@model.quoted_table_name}.#{quote_column(@model.inheritance_column)}"
+      end
+      
+      unique_id_expr = "* #{ThinkingSphinx.indexed_models.size} + #{options[:offset] || 0}"
+      
+      sql = <<-SQL
+SELECT #{ (
+  ["#{@model.quoted_table_name}.#{quote_column(@model.primary_key)} #{unique_id_expr} AS #{quote_column(@model.primary_key)} "] + 
+  @fields.collect { |field| field.to_select_sql } +
+  @attributes.collect { |attribute| attribute.to_select_sql }
+).join(", ") }
+FROM #{ @model.table_name }
+  #{ assocs.collect { |assoc| assoc.to_sql }.join(' ') }
+WHERE #{@model.quoted_table_name}.#{quote_column(@model.primary_key)} >= $start
+  AND #{@model.quoted_table_name}.#{quote_column(@model.primary_key)} <= $end
+  #{ where_clause }
+GROUP BY #{ (
+  ["#{@model.quoted_table_name}.#{quote_column(@model.primary_key)}"] + 
+  @fields.collect { |field| field.to_group_sql }.compact +
+  @attributes.collect { |attribute| attribute.to_group_sql }.compact +
+  @groupings + internal_groupings
+).join(", ") }
+      SQL
+      
+      if @model.connection.class.name == "ActiveRecord::ConnectionAdapters::MysqlAdapter"
+        sql += " ORDER BY NULL"
+      end
+      
+      sql
+    end
+    
+    # Simple helper method for the query info SQL - which is a statement that
+    # returns the single row for a corresponding id.
+    # 
+    def to_sql_query_info(offset)
+      "SELECT * FROM #{@model.quoted_table_name} WHERE " +
+      " #{quote_column(@model.primary_key)} = (($id - #{offset}) / #{ThinkingSphinx.indexed_models.size})"
+    end
+    
+    # Simple helper method for the query range SQL - which is a statement that
+    # returns minimum and maximum id values. These can be filtered by delta -
+    # so pass in :delta => true to get the delta version of the SQL.
+    # 
+    def to_sql_query_range(options={})
+      min_statement = adapter.convert_nulls(
+        "MIN(#{quote_column(@model.primary_key)})", 1
+      )
+      max_statement = adapter.convert_nulls(
+        "MAX(#{quote_column(@model.primary_key)})", 1
+      )
+      
+      sql = "SELECT #{min_statement}, #{max_statement} " +
+            "FROM #{@model.quoted_table_name} "
+      if self.delta? && !@delta_object.clause(@model, options[:delta]).blank?
+        sql << "WHERE #{@delta_object.clause(@model, options[:delta])}"
+      end
+      
+      sql
     end
   end
 end

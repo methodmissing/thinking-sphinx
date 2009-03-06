@@ -21,6 +21,16 @@ Feature: Searching on a single model
     When I search for James on first_name
     And I search for Chamberlain on last_name
     Then I should get 1 result
+
+  Scenario: Searching on association content
+	  Given Sphinx is running
+	  And I am searching on posts
+	
+	  When I search for "Waffles"
+	  Then I should get 1 result
+
+	  When I search for "Turtle"
+	  Then I should get 1 result
   
   Scenario: Searching with a filter
     Given Sphinx is running
@@ -33,6 +43,15 @@ Feature: Searching on a single model
     And I am searching on boxes
     When I filter by 2 on width
     And I filter by 2 on length
+    Then I should get 1 result
+    
+  Scenario: Searching to filter multiple values on an MVA
+    Given Sphinx is running
+    And I am searching on boxes
+    When I filter by 11 and 12 on dimensions
+    Then I should get 2 results
+    When I clear existing filters
+    And I filter by both 11 and 12 on dimensions
     Then I should get 1 result
   
   Scenario: Searching with ordering by attribute

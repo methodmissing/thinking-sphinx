@@ -21,7 +21,7 @@ module ThinkingSphinx
         
         options = args.extract_options!
         page    = options[:page] ? options[:page].to_i : 1
-
+        
         ThinkingSphinx::Collection.ids_from_results(results, page, client.limit, options)
       end
 
@@ -185,6 +185,12 @@ module ThinkingSphinx
       # Of course, there are other sort modes - check out the Sphinx
       # documentation[http://sphinxsearch.com/doc.html] for that level of
       # detail though.
+      #
+      # If desired, you can sort by a column in your model instead of a sphinx
+      # field or attribute. This sort only applies to the current page, so is
+      # most useful when performing a search with a single page of results.
+      #
+      #   User.search("pat", :sql_order => "name")
       #
       # == Grouping
       # 
@@ -352,6 +358,18 @@ module ThinkingSphinx
         end
       end
       
+      def facets(*args)
+        hash    = ThinkingSphinx::FacetCollection.new args
+        options = args.extract_options!.clone.merge! :group_function => :attr
+        
+        options[:class].sphinx_facets.inject(hash) do |hash, facet|
+          options[:group_by] = facet.attribute_name
+          
+          hash.add_from_results facet, search(*(args + [options]))
+          hash
+        end
+      end
+      
       private
       
       # This method handles the common search functionality, and returns both
@@ -377,6 +395,7 @@ module ThinkingSphinx
         
         client.limit  = options[:per_page].to_i if options[:per_page]
         page          = options[:page] ? options[:page].to_i : 1
+        page          = 1 if page <= 0
         client.offset = (page - 1) * client.limit
 
         begin
@@ -456,6 +475,13 @@ module ThinkingSphinx
         client.filters += options[:without].collect { |attr,val|
           Riddle::Client::Filter.new attr.to_s, filter_value(klass, attr, val), true
         } if options[:without]
+        
+        # every-match attribute filters
+        client.filters += options[:with_all].collect { |attr,vals|
+          Array(vals).collect { |val|
+            Riddle::Client::Filter.new attr.to_s, filter_value(val)
+          }
+        }.flatten if options[:with_all]
         
         # exclusive attribute filter on primary key
         client.filters += Array(options[:without_ids]).collect { |id|

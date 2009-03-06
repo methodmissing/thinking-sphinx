@@ -3,7 +3,7 @@ Feature: Checking whether Sphinx is running or not
   Thinking Sphinx
   Should be able to determine whether Sphinx is running or not
   
-  Scenario: Deleting instances from the core index
+  Scenario: Checking Sphinx's status
     Given Sphinx is running
     Then Sphinx should be running
     
@@ -14,3 +14,8 @@ Feature: Checking whether Sphinx is running or not
     When I start Sphinx
     And I wait for Sphinx to catch up
     Then Sphinx should be running
+    
+    Given Sphinx is running
+    When I kill the Sphinx process
+    And I wait for Sphinx to catch up
+    Then Sphinx should not be running

@@ -12,6 +12,8 @@ require 'thinking_sphinx/association'
 require 'thinking_sphinx/attribute'
 require 'thinking_sphinx/collection'
 require 'thinking_sphinx/configuration'
+require 'thinking_sphinx/facet'
+require 'thinking_sphinx/facet_collection'
 require 'thinking_sphinx/field'
 require 'thinking_sphinx/index'
 require 'thinking_sphinx/rails_additions'
@@ -24,11 +26,15 @@ require 'thinking_sphinx/adapters/postgresql_adapter'
 
 ActiveRecord::Base.send(:include, ThinkingSphinx::ActiveRecord)
 
+Merb::Plugins.add_rakefiles(
+  File.join(File.dirname(__FILE__), "thinking_sphinx", "tasks")
+) if defined?(Merb)
+
 module ThinkingSphinx
   module Version #:nodoc:
     Major = 1
     Minor = 1
-    Tiny  = 2
+    Tiny  = 5
     
     String = [Major, Minor, Tiny].join('.')
   end
@@ -152,15 +158,20 @@ module ThinkingSphinx
   end
   
   def self.sphinx_running?
-    !!sphinx_pid
+    !!sphinx_pid && pid_active?(sphinx_pid)
   end
   
   def self.sphinx_pid
     pid_file = ThinkingSphinx::Configuration.instance.pid_file    
     `cat #{pid_file}`[/\d+/] if File.exists?(pid_file)
   end
+  
+  def self.pid_active?(pid)
+    begin
+      Process.getpgid(pid.to_i)
+      true
+    rescue Exception => e
+      false
+    end
+  end
 end
-
-Merb::Plugins.add_rakefiles(
-  File.join(File.dirname(__FILE__), "..", "tasks", "thinking_sphinx_tasks")
-) if ThinkingSphinx.merb?
